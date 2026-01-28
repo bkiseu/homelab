@@ -1,0 +1,33 @@
+# Decrypted secrets - NEVER commit these
+kubeconfig.yaml
+**/secrets.yaml
+**/*-secrets.yaml
+!**/*-secrets.yaml.enc
+
+# Decrypted kubeconfig
+~/.kube/homelab
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/

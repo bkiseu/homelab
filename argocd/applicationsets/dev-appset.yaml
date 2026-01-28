@@ -1,0 +1,72 @@
+# Dev Environment ApplicationSet
+# Discovers all layer files in argocd/apps/dev/ and generates Applications
+#
+# Each layer file (core.yaml, observability.yaml, etc.) contains:
+#   - An ArgoCD Project definition
+#   - Multiple Application definitions
+#
+# This uses the official argocd-apps Helm chart to generate resources
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dev-layers
+  namespace: argocd
+  labels:
+    environment: dev
+    app.kubernetes.io/part-of: homelab
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - git:
+        repoURL: https://github.com/bkiseu/homelab.git
+        revision: HEAD
+        files:
+          - path: argocd/apps/dev/*.yaml
+
+  template:
+    metadata:
+      # Name: dev-core, dev-observability, dev-home, dev-apps
+      name: 'dev-{{ index (splitList "." .path.filenameNormalized) 0 }}'
+      namespace: argocd
+      labels:
+        environment: dev
+        layer: '{{ index (splitList "." .path.filenameNormalized) 0 }}'
+        app.kubernetes.io/part-of: homelab
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+
+      sources:
+        # Source 1: argocd-apps Helm chart generates Projects + Applications
+        - repoURL: https://argoproj.github.io/argo-helm
+          chart: argocd-apps
+          targetRevision: 2.0.2
+          helm:
+            valueFiles:
+              - '$values/argocd/apps/dev/{{ .path.filename }}'
+
+        # Source 2: Reference for $values placeholder
+        - repoURL: https://github.com/bkiseu/homelab.git
+          targetRevision: HEAD
+          ref: values
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=false
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

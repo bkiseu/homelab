@@ -1,0 +1,12 @@
+# Kustomization for initial ArgoCD installation
+# This is applied ONCE manually, then ArgoCD manages itself via GitOps
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - namespace.yaml
+  # Install ArgoCD from official manifests
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.3/manifests/install.yaml

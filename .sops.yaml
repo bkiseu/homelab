@@ -1,0 +1,24 @@
+# SOPS configuration for homelab secrets encryption
+# Uses age for encryption - both MacBooks can encrypt/decrypt
+
+creation_rules:
+  # Encrypted kubeconfig
+  - path_regex: kubeconfig\.enc\.yaml$
+    age:
+      # Add your age public keys here after running scripts/setup-sops.sh
+      # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 1
+      # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 2
+
+  # Any other encrypted files (secrets, etc.)
+  - path_regex: .*\.enc\.yaml$
+    age:
+      # Add your age public keys here after running scripts/setup-sops.sh
+      # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 1
+      # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 2
+
+  # Encrypted values files for Helm charts
+  - path_regex: .*-secrets\.yaml$
+    age:
+      # Add your age public keys here after running scripts/setup-sops.sh
+      # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 1
+      # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 2

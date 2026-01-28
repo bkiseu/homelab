@@ -1,0 +1,37 @@
+# Cert-Manager Dev Values
+# Complete configuration for dev environment
+
+installCRDs: true
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+webhook:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+cainjector:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+# Enable prometheus metrics
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false  # Enable when prometheus is deployed

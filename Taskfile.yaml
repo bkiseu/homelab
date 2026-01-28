@@ -1,0 +1,200 @@
+# Taskfile for homelab GitOps operations
+# Install: brew install go-task
+# Usage: task <command>
+
+version: '3'
+
+vars:
+  KUBECONFIG_PATH: ~/.kube/homelab
+  ENCRYPTED_KUBECONFIG: kubeconfig.enc.yaml
+
+tasks:
+  # =============================================================================
+  # Setup Tasks
+  # =============================================================================
+
+  setup:
+    desc: One-time setup for new MacBook
+    cmds:
+      - ./scripts/setup-sops.sh
+      - task: decrypt-kubeconfig
+    preconditions:
+      - sh: test -f ./scripts/setup-sops.sh
+        msg: "setup-sops.sh not found"
+
+  decrypt-kubeconfig:
+    desc: Decrypt kubeconfig to ~/.kube/homelab
+    cmds:
+      - mkdir -p ~/.kube
+      - sops -d {{.ENCRYPTED_KUBECONFIG}} > {{.KUBECONFIG_PATH}}
+      - chmod 600 {{.KUBECONFIG_PATH}}
+    preconditions:
+      - sh: test -f {{.ENCRYPTED_KUBECONFIG}}
+        msg: "Encrypted kubeconfig not found. Export from k3s node first."
+      - sh: command -v sops
+        msg: "sops not installed. Run: brew install sops"
+
+  encrypt-kubeconfig:
+    desc: Encrypt kubeconfig for git storage
+    cmds:
+      - sops -e kubeconfig.yaml > {{.ENCRYPTED_KUBECONFIG}}
+      - rm kubeconfig.yaml
+      - echo "Encrypted kubeconfig saved to {{.ENCRYPTED_KUBECONFIG}}"
+    preconditions:
+      - sh: test -f kubeconfig.yaml
+        msg: "kubeconfig.yaml not found. Export from k3s node first."
+
+  # =============================================================================
+  # Bootstrap Tasks
+  # =============================================================================
+
+  bootstrap:
+    desc: Initial cluster bootstrap (run once per cluster)
+    cmds:
+      - echo "Installing ArgoCD..."
+      - kubectl apply -k bootstrap/argocd-install/
+      - echo "Waiting for ArgoCD to be ready..."
+      - kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
+      - echo "Applying root application..."
+      - kubectl apply -f bootstrap/root-app.yaml
+      - echo "Bootstrap complete! ArgoCD will now manage everything."
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+    preconditions:
+      - sh: test -f {{.KUBECONFIG_PATH}}
+        msg: "Kubeconfig not found. Run 'task decrypt-kubeconfig' first."
+
+  # =============================================================================
+  # Status & Monitoring Tasks
+  # =============================================================================
+
+  status:
+    desc: Check ArgoCD application sync status
+    cmds:
+      - argocd app list
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  status:apps:
+    desc: Show detailed status for all apps
+    cmds:
+      - kubectl get applications -n argocd -o wide
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  logs:
+    desc: View ArgoCD server logs
+    cmds:
+      - kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server -f
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  logs:controller:
+    desc: View ArgoCD application controller logs
+    cmds:
+      - kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller -f
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  # =============================================================================
+  # ArgoCD Access Tasks
+  # =============================================================================
+
+  argocd:password:
+    desc: Get initial ArgoCD admin password
+    cmds:
+      - kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  argocd:port-forward:
+    desc: Port-forward ArgoCD UI to localhost:8080
+    cmds:
+      - echo "ArgoCD UI available at https://localhost:8080"
+      - kubectl port-forward svc/argocd-server -n argocd 8080:443
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  argocd:login:
+    desc: Login to ArgoCD CLI (run argocd:port-forward first)
+    cmds:
+      - argocd login localhost:8080 --username admin --password $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) --insecure
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  # =============================================================================
+  # Sync Tasks
+  # =============================================================================
+
+  sync:
+    desc: Manually sync all applications
+    cmds:
+      - argocd app sync --all
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  sync:app:
+    desc: Sync a specific application (usage: task sync:app APP=app-name)
+    cmds:
+      - argocd app sync {{.APP}}
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+    requires:
+      vars: [APP]
+
+  # =============================================================================
+  # Cluster Info Tasks
+  # =============================================================================
+
+  cluster:info:
+    desc: Show cluster information
+    cmds:
+      - kubectl cluster-info
+      - echo ""
+      - kubectl get nodes -o wide
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  cluster:resources:
+    desc: Show cluster resource usage
+    cmds:
+      - kubectl top nodes
+      - echo ""
+      - kubectl top pods -A --sort-by=memory | head -20
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+
+  # =============================================================================
+  # Secret Management Tasks
+  # =============================================================================
+
+  secret:encrypt:
+    desc: Encrypt a secrets file (usage: task secret:encrypt FILE=path/to/secrets.yaml)
+    cmds:
+      - sops -e {{.FILE}} > {{.FILE}}.enc
+      - echo "Encrypted to {{.FILE}}.enc"
+    requires:
+      vars: [FILE]
+    preconditions:
+      - sh: test -f {{.FILE}}
+        msg: "File {{.FILE}} not found"
+
+  secret:decrypt:
+    desc: Decrypt a secrets file (usage: task secret:decrypt FILE=path/to/secrets.enc.yaml)
+    cmds:
+      - sops -d {{.FILE}}
+    requires:
+      vars: [FILE]
+    preconditions:
+      - sh: test -f {{.FILE}}
+        msg: "File {{.FILE}} not found"
+
+  secret:edit:
+    desc: Edit an encrypted secrets file in-place (usage: task secret:edit FILE=path/to/secrets.enc.yaml)
+    cmds:
+      - sops {{.FILE}}
+    requires:
+      vars: [FILE]
+    preconditions:
+      - sh: test -f {{.FILE}}
+        msg: "File {{.FILE}} not found"

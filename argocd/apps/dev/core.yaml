@@ -1,0 +1,60 @@
+# Dev Core Layer - Infrastructure Components
+# Contains: dev-core project + cert-manager
+#
+# This file is consumed by the argocd-apps Helm chart via the dev ApplicationSet
+
+# =============================================================================
+# Project Definition
+# =============================================================================
+projects:
+  - name: dev-core
+    namespace: argocd
+    description: "Core infrastructure for dev environment"
+    sourceRepos:
+      - "https://github.com/bkiseu/homelab.git"
+      - "https://charts.jetstack.io"
+    destinations:
+      - namespace: "cert-manager"
+        server: https://kubernetes.default.svc
+    clusterResourceWhitelist:
+      - group: "*"
+        kind: "*"
+    namespaceResourceWhitelist:
+      - group: "*"
+        kind: "*"
+
+# =============================================================================
+# Applications
+# =============================================================================
+applications:
+  # ---------------------------------------------------------------------------
+  # Cert-Manager - TLS certificate automation
+  # ---------------------------------------------------------------------------
+  - name: dev-cert-manager
+    namespace: argocd
+    project: dev-core
+    sources:
+      - repoURL: https://charts.jetstack.io
+        chart: cert-manager
+        targetRevision: v1.16.2
+        helm:
+          valueFiles:
+            - $values/charts/cert-manager/dev-values.yaml
+      - repoURL: https://github.com/bkiseu/homelab.git
+        targetRevision: HEAD
+        ref: values
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: cert-manager
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+      retry:
+        limit: 3
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m

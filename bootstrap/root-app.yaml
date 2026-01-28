@@ -1,0 +1,44 @@
+# Root Application - The ONLY manual apply after bootstrap
+# This application discovers and manages all environment ApplicationSets
+#
+# Bootstrap hierarchy:
+#   root-app.yaml (this file)
+#     └── argocd/applicationsets/*.yaml (auto-discovered)
+#           └── argocd/apps/{env}/*.yaml (auto-discovered per env)
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: root
+    app.kubernetes.io/part-of: homelab
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/bkiseu/homelab.git
+    targetRevision: HEAD
+    path: argocd/applicationsets
+    directory:
+      recurse: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: false      # Don't auto-delete ApplicationSets
+      selfHeal: true    # Auto-fix drift
+    syncOptions:
+      - CreateNamespace=false
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
