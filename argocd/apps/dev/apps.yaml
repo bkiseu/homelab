@@ -13,7 +13,7 @@ projects:
     sourceRepos:
       - "https://github.com/bkiseu/homelab.git"
     destinations:
-      - namespace: "linkding"
+      - namespace: "*"
         server: https://kubernetes.default.svc
     namespaceResourceWhitelist:
       - group: "*"
