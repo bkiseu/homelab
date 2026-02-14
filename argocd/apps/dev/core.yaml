@@ -7,7 +7,7 @@
 # Project Definition
 # =============================================================================
 projects:
-  - name: dev-core
+  dev-core:
     namespace: argocd
     description: "Core infrastructure for dev environment"
     sourceRepos:
@@ -30,7 +30,7 @@ applications:
   # ---------------------------------------------------------------------------
   # Cert-Manager - TLS certificate automation
   # ---------------------------------------------------------------------------
-  - name: dev-cert-manager
+  dev-cert-manager:
     namespace: argocd
     project: dev-core
     sources:

@@ -7,7 +7,7 @@
 # Project Definition
 # =============================================================================
 projects:
-  - name: dev-apps
+  dev-apps:
     namespace: argocd
     description: "Applications for dev environment"
     sourceRepos:
@@ -26,7 +26,7 @@ applications:
   # ---------------------------------------------------------------------------
   # Linkding - Self-hosted bookmark manager
   # ---------------------------------------------------------------------------
-  - name: dev-linkding
+  dev-linkding:
     namespace: argocd
     project: dev-apps
     sources:
