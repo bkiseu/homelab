@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: linkding
+  labels:
+    app.kubernetes.io/name: linkding
+    app.kubernetes.io/component: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: linkding
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: linkding
+        app.kubernetes.io/component: app
+    spec:
+      containers:
+        - name: linkding
+          image: sissbruecker/linkding:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: LD_DATA_DIRECTORY
+              value: /etc/linkding/data
+            - name: LD_CONTEXT_PATH
+              value: /
+            - name: LD_CSRF_TRUSTED_ORIGINS
+              value: http://localhost:*
+            - name: TZ
+              value: UTC
+            - name: LD_ENABLE_BACKGROUND_TASKS
+              value: "true"
+            - name: LD_REQUEST_TIMEOUT
+              value: "30"
+            - name: LD_DISABLE_AUTHENTICATION
+              value: "false"
+            - name: LD_DISABLE_REGISTRATION
+              value: "false"
+            - name: LD_BOOKMARK_PERMISSION_MODEL
+              value: "read_only"
+            - name: LD_ALLOW_REGISTRATION
+              value: "true"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /etc/linkding/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: linkding-data

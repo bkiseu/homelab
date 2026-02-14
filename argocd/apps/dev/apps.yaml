@@ -1,0 +1,50 @@
+# Dev Apps Layer - Applications deployed via Kustomize
+# Contains: dev-apps project + linkding
+#
+# This file is consumed by the argocd-apps Helm chart via the dev ApplicationSet
+
+# =============================================================================
+# Project Definition
+# =============================================================================
+projects:
+  - name: dev-apps
+    namespace: argocd
+    description: "Applications for dev environment"
+    sourceRepos:
+      - "https://github.com/bkiseu/homelab.git"
+    destinations:
+      - namespace: "linkding"
+        server: https://kubernetes.default.svc
+    namespaceResourceWhitelist:
+      - group: "*"
+        kind: "*"
+
+# =============================================================================
+# Applications
+# =============================================================================
+applications:
+  # ---------------------------------------------------------------------------
+  # Linkding - Self-hosted bookmark manager
+  # ---------------------------------------------------------------------------
+  - name: dev-linkding
+    namespace: argocd
+    project: dev-apps
+    sources:
+      - repoURL: https://github.com/bkiseu/homelab.git
+        targetRevision: HEAD
+        path: kustomize/overlays/dev/linkding
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: linkding
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+      retry:
+        limit: 3
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
