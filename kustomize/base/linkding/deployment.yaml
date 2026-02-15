@@ -16,10 +16,21 @@ spec:
         app.kubernetes.io/name: linkding
         app.kubernetes.io/component: app
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 33
+        runAsGroup: 33
+        fsGroup: 33
       containers:
         - name: linkding
           image: sissbruecker/linkding:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
           ports:
             - containerPort: 9090
               # protocol: TCP
