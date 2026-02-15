@@ -21,30 +21,29 @@ spec:
           image: sissbruecker/linkding:latest
           imagePullPolicy: Always
           ports:
-            - name: http
-              containerPort: 9090
-              protocol: TCP
-          env:
-            - name: LD_DATA_DIRECTORY
-              value: /etc/linkding/data
-            - name: LD_CONTEXT_PATH
-              value: /
-            - name: LD_CSRF_TRUSTED_ORIGINS
-              value: localhost:8888,localhost:9090
-            - name: TZ
-              value: UTC
-            - name: LD_ENABLE_BACKGROUND_TASKS
-              value: "true"
-            - name: LD_REQUEST_TIMEOUT
-              value: "30"
-            - name: LD_DISABLE_AUTHENTICATION
-              value: "false"
-            - name: LD_DISABLE_REGISTRATION
-              value: "false"
-            - name: LD_BOOKMARK_PERMISSION_MODEL
-              value: "read_only"
-            - name: LD_ALLOW_REGISTRATION
-              value: "true"
+            - containerPort: 9090
+              # protocol: TCP
+          # env:
+          #   - name: LD_DATA_DIRECTORY
+          #     value: /etc/linkding/data
+          #   - name: LD_CONTEXT_PATH
+          #     value: /
+          #   - name: LD_CSRF_TRUSTED_ORIGINS
+          #     value: localhost:8888,localhost:9090
+          #   - name: TZ
+          #     value: UTC
+          #   - name: LD_ENABLE_BACKGROUND_TASKS
+          #     value: "true"
+          #   - name: LD_REQUEST_TIMEOUT
+          #     value: "30"
+          #   - name: LD_DISABLE_AUTHENTICATION
+          #     value: "false"
+          #   - name: LD_DISABLE_REGISTRATION
+          #     value: "false"
+          #   - name: LD_BOOKMARK_PERMISSION_MODEL
+          #     value: "read_only"
+          #   - name: LD_ALLOW_REGISTRATION
+          #     value: "true"
           resources:
             requests:
               cpu: 100m
