@@ -30,7 +30,7 @@ spec:
             - name: LD_CONTEXT_PATH
               value: /
             - name: LD_CSRF_TRUSTED_ORIGINS
-              value: http://localhost:8888,http://localhost:9090
+              value: localhost:8888,localhost:9090
             - name: TZ
               value: UTC
             - name: LD_ENABLE_BACKGROUND_TASKS
