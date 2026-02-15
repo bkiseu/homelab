@@ -30,7 +30,7 @@ spec:
             - name: LD_CONTEXT_PATH
               value: /
             - name: LD_CSRF_TRUSTED_ORIGINS
-              value: http://localhost:*
+              value: http://localhost:8888,http://localhost:9090
             - name: TZ
               value: UTC
             - name: LD_ENABLE_BACKGROUND_TASKS
@@ -52,9 +52,9 @@ spec:
             limits:
               memory: 256Mi
           volumeMounts:
-            - name: data
+            - name: linkding-data
               mountPath: /etc/linkding/data
       volumes:
-        - name: data
+        - name: linkding-data
           persistentVolumeClaim:
-            claimName: linkding-data
+            claimName: linkding-data-pvc
