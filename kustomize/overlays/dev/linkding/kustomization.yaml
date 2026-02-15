@@ -7,3 +7,4 @@ namespace: linkding
 # Reference the base resources
 resources:
   - ../../../base/linkding
+  - cloudflare.yaml
