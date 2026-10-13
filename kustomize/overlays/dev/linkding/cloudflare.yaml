@@ -86,6 +86,15 @@ data:
 
     credentials-file: /etc/cloudflared/creds/credentials.json
 
+    # Outbound UDP/QUIC (port 7844) is blocked on this network. cloudflared's
+    # "auto" default still attempts quic first every time and only falls back
+    # to http2 after repeated handshake timeouts (its own connectivity
+    # pre-check correctly detects this and logs suggested_protocol=http2, but
+    # doesn't actually act on it) - causing minutes-long reconnect storms that
+    # outpace any reasonable liveness probe. Pinning http2 explicitly skips
+    # the doomed quic attempts entirely.
+    protocol: http2
+
     # Serves the metrics server under /metrics and the readiness server under /ready
     metrics: 0.0.0.0:2000
     no-autoupdate: true
