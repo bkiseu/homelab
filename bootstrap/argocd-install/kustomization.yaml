@@ -10,3 +10,7 @@ resources:
   - namespace.yaml
   # Install ArgoCD from official manifests
   - https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.3/manifests/install.yaml
+
+patches:
+  # Exclude Cilium's auto-generated CiliumIdentity objects from resource tracking
+  - path: argocd-cm-patch.yaml

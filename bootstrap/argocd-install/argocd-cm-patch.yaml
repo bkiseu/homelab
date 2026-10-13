@@ -1,0 +1,18 @@
+# Cilium writes ArgoCD's own app.kubernetes.io/instance tracking label onto the
+# CiliumIdentity objects it generates for each pod's security identity (it copies
+# the pod's full label set). ArgoCD's default label-based resource tracking then
+# mistakes these Cilium-internal, auto-generated objects for app-owned resources,
+# showing the owning Application as permanently OutOfSync. They're not part of
+# any chart/manifest in this repo and Argo never created them, so exclude them.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  resource.exclusions: |
+    - apiGroups:
+      - "cilium.io"
+      kinds:
+      - CiliumIdentity
+      clusters:
+      - "*"
