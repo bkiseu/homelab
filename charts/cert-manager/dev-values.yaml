@@ -1,6 +1,10 @@
 # Cert-Manager Dev Values
 # Complete configuration for dev environment
 
+global:
+  leaderElection:
+    namespace: cert-manager
+
 installCRDs: true
 
 replicaCount: 1
