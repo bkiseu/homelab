@@ -30,9 +30,16 @@ spec:
             # it has an active connection to the edge.
             path: /ready
             port: 2000
-          failureThreshold: 1
+          # failureThreshold was 1, which killed the container on a single missed
+          # check. On networks where outbound UDP/QUIC (port 7844) is blocked,
+          # cloudflared falls back to the slower http2 transport and can report
+          # transient 503s while reconnecting, causing a restart loop. 3 failures
+          # (30s of being down) gives real transport issues time to recover
+          # without masking a genuinely stuck tunnel.
+          failureThreshold: 3
           initialDelaySeconds: 10
           periodSeconds: 10
+          timeoutSeconds: 3
         volumeMounts:
         - name: config
           mountPath: /etc/cloudflared/config
