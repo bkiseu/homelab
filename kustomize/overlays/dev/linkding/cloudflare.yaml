@@ -24,20 +24,27 @@ spec:
         - --config
         - /etc/cloudflared/config/config.yaml
         - run
+        # UDP/QUIC (port 7844) is blocked on this network, so cloudflared's
+        # automatic protocol selection tries quic, times out across several
+        # retries, then falls back to http2 - this build has no --protocol
+        # flag to force http2 directly (checked `tunnel run --help`), so the
+        # fallback dance has to be tolerated instead. startupProbe absorbs
+        # that one-time delay; livenessProbe only takes over, with a much
+        # tighter budget, once startup has actually succeeded.
+        startupProbe:
+          httpGet:
+            path: /ready
+            port: 2000
+          failureThreshold: 12
+          periodSeconds: 10
+          timeoutSeconds: 3
         livenessProbe:
           httpGet:
             # Cloudflared has a /ready endpoint which returns 200 if and only if
             # it has an active connection to the edge.
             path: /ready
             port: 2000
-          # failureThreshold was 1, which killed the container on a single missed
-          # check. On networks where outbound UDP/QUIC (port 7844) is blocked,
-          # cloudflared falls back to the slower http2 transport and can report
-          # transient 503s while reconnecting, causing a restart loop. 3 failures
-          # (30s of being down) gives real transport issues time to recover
-          # without masking a genuinely stuck tunnel.
           failureThreshold: 3
-          initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 3
         volumeMounts:
