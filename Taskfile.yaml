@@ -134,7 +134,7 @@ tasks:
       KUBECONFIG: "{{.KUBECONFIG_PATH}}"
 
   sync:app:
-    desc: Sync a specific application (usage: task sync:app APP=app-name)
+    desc: "Sync a specific application (usage: task sync:app APP=app-name)"
     cmds:
       - argocd app sync {{.APP}}
     env:
@@ -169,7 +169,7 @@ tasks:
   # =============================================================================
 
   secret:encrypt:
-    desc: Encrypt a secrets file (usage: task secret:encrypt FILE=path/to/secrets.yaml)
+    desc: "Encrypt a secrets file (usage: task secret:encrypt FILE=path/to/secrets.yaml)"
     cmds:
       - sops -e {{.FILE}} > {{.FILE}}.enc
       - echo "Encrypted to {{.FILE}}.enc"
@@ -180,7 +180,7 @@ tasks:
         msg: "File {{.FILE}} not found"
 
   secret:decrypt:
-    desc: Decrypt a secrets file (usage: task secret:decrypt FILE=path/to/secrets.enc.yaml)
+    desc: "Decrypt a secrets file (usage: task secret:decrypt FILE=path/to/secrets.enc.yaml)"
     cmds:
       - sops -d {{.FILE}}
     requires:
@@ -190,7 +190,7 @@ tasks:
         msg: "File {{.FILE}} not found"
 
   secret:edit:
-    desc: Edit an encrypted secrets file in-place (usage: task secret:edit FILE=path/to/secrets.enc.yaml)
+    desc: "Edit an encrypted secrets file in-place (usage: task secret:edit FILE=path/to/secrets.enc.yaml)"
     cmds:
       - sops {{.FILE}}
     requires:
