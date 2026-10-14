@@ -103,6 +103,13 @@ data:
     - hostname: ldpi.sentinel-systems.net
       service: http://linkding:9090
 
+    # Blog (dev-blog Application, kustomize/overlays/dev/blog) runs in its own
+    # "blog" namespace, so it's addressed by cross-namespace Service DNS -
+    # cloudflared itself still lives here, under the linkding overlay, since
+    # this tunnel is shared across apps rather than one-per-app.
+    - hostname: blog.bryantkiseu.com
+      service: http://blog.blog.svc.cluster.local:80
+
     # This rule sends traffic to the built-in hello-world HTTP server. This can help debug connectivity
     # issues. If hello.example.com resolves and tunnel.example.com does not, then the problem is
     # in the connection from cloudflared to your local service, not from the internet to cloudflared.

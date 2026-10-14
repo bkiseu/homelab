@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Add namespace to all resources
+namespace: blog
+
+# Reference the base resources
+resources:
+  - ../../../base/blog

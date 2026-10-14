@@ -28,6 +28,33 @@ projects:
 # =============================================================================
 applications:
   # ---------------------------------------------------------------------------
+  # Blog - Hugo static site, built from github.com/bkiseu/blog at pod startup,
+  # served via the shared ldpi cloudflared tunnel (see overlays/dev/linkding/cloudflare.yaml)
+  # ---------------------------------------------------------------------------
+  dev-blog:
+    namespace: argocd
+    project: dev-apps
+    sources:
+      - repoURL: https://github.com/bkiseu/homelab.git
+        targetRevision: HEAD
+        path: kustomize/overlays/dev/blog
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: blog
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+      retry:
+        limit: 3
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
+
+  # ---------------------------------------------------------------------------
   # Linkding - Self-hosted bookmark manager
   # ---------------------------------------------------------------------------
   dev-linkding:
