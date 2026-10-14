@@ -198,3 +198,15 @@ tasks:
     preconditions:
       - sh: test -f {{.FILE}}
         msg: "File {{.FILE}} not found"
+
+  # =============================================================================
+  # Blog Tasks
+  # =============================================================================
+
+  blog:publish:
+    desc: "Rebuild and redeploy the blog from the latest github.com/bkiseu/blog commit"
+    cmds:
+      - kubectl rollout restart deployment/blog -n blog
+      - kubectl rollout status deployment/blog -n blog --timeout=150s
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
