@@ -107,7 +107,7 @@ data:
     # "blog" namespace, so it's addressed by cross-namespace Service DNS -
     # cloudflared itself still lives here, under the linkding overlay, since
     # this tunnel is shared across apps rather than one-per-app.
-    - hostname: blog.bryantkiseu.com
+    - hostname: blog.bryantkiseu.dev
       service: http://blog.blog.svc.cluster.local:80
 
     # This rule sends traffic to the built-in hello-world HTTP server. This can help debug connectivity
