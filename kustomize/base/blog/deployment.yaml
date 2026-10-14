@@ -19,12 +19,15 @@ spec:
       initContainers:
       - name: fetch-content
         image: alpine/git:2.54.0
+        # `git clone` refuses a non-empty destination. The emptyDir volume can
+        # survive a pod sandbox recreation (e.g. after a brief node
+        # NotReady blip) with the previous clone still in it, which would
+        # otherwise crash-loop this container forever - so clear it first.
+        command: ["sh", "-c"]
         args:
-        - clone
-        - --recurse-submodules
-        - --depth=1
-        - https://github.com/bkiseu/blog.git
-        - /src
+        - |
+          rm -rf /src/..?* /src/.[!.]* /src/*
+          git clone --recurse-submodules --depth=1 https://github.com/bkiseu/blog.git /src
         volumeMounts:
         - name: site-src
           mountPath: /src
