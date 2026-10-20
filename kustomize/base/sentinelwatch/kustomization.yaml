@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# SentinelWatch - Bryant's private application log (static site, browser-only
+# storage). Source of truth is github.com/bkiseu/sentinelwatch (private); the
+# built files are copied into site/ with `task sentinelwatch:sync`, so the
+# cluster needs no credentials for the private repo. The generated ConfigMap
+# name carries a content hash, so a sync + merge rolls the pod automatically.
+resources:
+  - deployment.yaml
+  - service.yaml
+
+configMapGenerator:
+  - name: sentinelwatch-site
+    files:
+      - site/index.html
+      - site/app.js
+      - site/logic.js
+      - site/styles.css
+      - site/icon.svg
+  - name: sentinelwatch-nginx
+    files:
+      - default.conf

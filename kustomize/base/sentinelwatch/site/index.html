@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SentinelWatch</title>
+  <meta name="description" content="Private application log: every application, every answer, kept on this device.">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <img class="mark" src="icon.svg" alt="" width="32" height="32">
+      <div>
+        <strong>SentinelWatch</strong>
+        <span class="tag">every application, on watch</span>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" data-view="log" aria-selected="true">Log</button>
+      <button role="tab" data-view="wall" aria-selected="false">Wall</button>
+      <button role="tab" data-view="wrapped" aria-selected="false">Wrapped</button>
+      <button role="tab" data-view="settings" aria-selected="false">Settings</button>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="stats" aria-label="Progress">
+      <article class="stat goal">
+        <h2>Road to <span id="goal-n">1000</span></h2>
+        <p class="big"><span id="got">0</span><small> rejections</small></p>
+        <div class="bar" role="progressbar" aria-labelledby="goal-n" aria-valuemin="0" aria-valuemax="100" id="goal-bar"><span></span></div>
+        <p class="muted" id="pace-line"></p>
+      </article>
+      <article class="stat">
+        <h2>Today</h2>
+        <p class="big"><span id="today-n">0</span><small> / <span id="today-target">10</span></small></p>
+        <div class="bar small" id="today-bar"><span></span></div>
+        <p class="muted" id="today-line">Start with one.</p>
+      </article>
+      <article class="stat">
+        <h2>Streak</h2>
+        <p class="big"><span id="streak">0</span><small> days</small></p>
+        <p class="muted">Best: <span id="best-streak">0</span> days</p>
+      </article>
+      <article class="stat">
+        <h2>On record</h2>
+        <p class="big"><span id="total">0</span><small> applications</small></p>
+        <p class="muted"><span id="open-n">0</span> open · <span id="offer-n">0 offers</span></p>
+      </article>
+    </section>
+
+    <section id="alerts" class="alerts" aria-live="polite"></section>
+
+    <!-- LOG -->
+    <section class="view" data-view="log">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Log an application</h2>
+          <div class="seg" role="group" aria-label="Entry mode">
+            <button type="button" data-mode="one" aria-pressed="true">One</button>
+            <button type="button" data-mode="many" aria-pressed="false">Many at once</button>
+          </div>
+        </div>
+
+        <form id="log-form" class="grid-form" autocomplete="off">
+          <label class="span2">Company <input name="company" required placeholder="e.g. Canonical"></label>
+          <label class="span2">Role <input name="role" placeholder="e.g. Platform Engineer"></label>
+          <label>Type <select name="type"></select></label>
+          <label>Status <select name="status"></select></label>
+          <label>Follow up on <input name="followUp" type="date"></label>
+          <label>Applied on <input name="appliedOn" type="date"></label>
+          <label class="span4">Link <input name="link" type="text" inputmode="url" placeholder="https://… (job post or portal)"></label>
+          <label class="span4">Notes <textarea name="notes" rows="2" placeholder="Who referred you, salary range, what you sent…"></textarea></label>
+          <div class="span4 actions">
+            <button class="primary" type="submit">Log it</button>
+            <span class="hint">Saved only in this browser. Back it up from Settings.</span>
+          </div>
+        </form>
+
+        <form id="bulk-form" class="bulk" hidden>
+          <label><span>One per line: <code>Company - Role</code>, <code>Company, Role, link</code> or <code>Company | Role | link</code></span>
+            <textarea name="bulk" rows="6" placeholder="Acme - Platform Engineer&#10;Globex, SRE, https://globex.com/jobs/42"></textarea>
+          </label>
+          <div class="row">
+            <label>Type <select name="type"></select></label>
+            <label>Status <select name="status"></select></label>
+            <button class="primary" type="submit">Add all</button>
+          </div>
+          <p class="hint" id="bulk-result" aria-live="polite"></p>
+        </form>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Applications</h2>
+          <input id="search" type="search" placeholder="Search company, role, notes" aria-label="Search applications">
+        </div>
+        <div id="filters" class="chips" role="group" aria-label="Filter by status"></div>
+        <ul id="list" class="list"></ul>
+        <p id="empty" class="empty" hidden>Nothing logged yet. Your first one goes above.</p>
+      </div>
+    </section>
+
+    <!-- WALL -->
+    <section class="view" data-view="wall" hidden>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>The wall</h2>
+          <p class="legend" id="legend"></p>
+        </div>
+        <p class="muted">One tile per application, newest first. A tile lights up when you hear back.</p>
+        <div id="wall"></div>
+      </div>
+    </section>
+
+    <!-- WRAPPED -->
+    <section class="view" data-view="wrapped" hidden>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Wrapped</h2>
+          <label class="inline">Year <select id="wrapped-year"></select></label>
+        </div>
+        <div id="wrapped"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" data-view="settings" hidden>
+      <div class="panel">
+        <h2>Goal</h2>
+        <form id="settings-form" class="grid-form">
+          <label>Rejections to collect <input name="goal" type="number" min="1" step="1"></label>
+          <label>Applications per day <input name="dailyTarget" type="number" min="1" step="1"></label>
+          <label>By <input name="deadline" type="date"></label>
+          <div class="actions"><button class="primary" type="submit">Save goal</button><span class="hint" id="settings-saved" aria-live="polite"></span></div>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>Backup</h2>
+        <p class="muted">Everything lives in this browser only. Export a backup now and then, and use it to move to another device.</p>
+        <div class="row wrap">
+          <button id="export-json" type="button">Export backup (.json)</button>
+          <button id="export-csv" type="button">Export spreadsheet (.csv)</button>
+          <label class="file">Import backup <input id="import-file" type="file" accept="application/json,.json"></label>
+          <label class="inline">On import
+            <select id="import-mode"><option value="merge">merge with what's here</option><option value="replace">replace everything</option></select>
+          </label>
+        </div>
+        <p class="hint" id="backup-result" aria-live="polite"></p>
+        <p class="hint" id="last-backup"></p>
+      </div>
+      <div class="panel danger">
+        <h2>Start over</h2>
+        <p class="muted">Deletes every application in this browser. Export first.</p>
+        <button id="wipe" type="button" class="danger-btn">Delete everything</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="edit-dialog">
+    <form method="dialog" id="edit-form" class="grid-form">
+      <h2 class="span4">Edit application</h2>
+      <label class="span2">Company <input name="company" required></label>
+      <label class="span2">Role <input name="role"></label>
+      <label>Type <select name="type"></select></label>
+      <label>Status <select name="status"></select></label>
+      <label>Follow up on <input name="followUp" type="date"></label>
+      <label>Applied on <input name="appliedOn" type="date"></label>
+      <label class="span4">Link <input name="link" type="text" inputmode="url"></label>
+      <label class="span4">Notes <textarea name="notes" rows="4"></textarea></label>
+      <div class="span4 actions">
+        <button class="primary" value="save">Save</button>
+        <button value="cancel" formnovalidate>Cancel</button>
+        <button value="delete" class="danger-btn push" formnovalidate>Delete</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

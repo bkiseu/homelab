@@ -235,6 +235,17 @@ tasks:
   # Blog Tasks
   # =============================================================================
 
+  sentinelwatch:sync:
+    desc: "Copy SentinelWatch's static files from ../sentinelwatch/public into the kustomize base (commit + merge to deploy)"
+    vars:
+      SRC: '{{.SRC | default "../sentinelwatch/public"}}'
+    preconditions:
+      - sh: test -f "{{.SRC}}/index.html"
+        msg: "SentinelWatch checkout not found at {{.SRC}} (override with SRC=...)"
+    cmds:
+      - cp "{{.SRC}}"/index.html "{{.SRC}}"/app.js "{{.SRC}}"/logic.js "{{.SRC}}"/styles.css "{{.SRC}}"/icon.svg kustomize/base/sentinelwatch/site/
+      - git status --short kustomize/base/sentinelwatch/site
+
   blog:publish:
     desc: "Rebuild and redeploy the blog from the latest github.com/bkiseu/blog commit"
     cmds:
