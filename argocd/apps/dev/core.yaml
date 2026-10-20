@@ -13,8 +13,11 @@ projects:
     sourceRepos:
       - "https://github.com/bkiseu/homelab.git"
       - "https://charts.jetstack.io"
+      - "https://pkgs.tailscale.com/helmcharts"
     destinations:
       - namespace: "cert-manager"
+        server: https://kubernetes.default.svc
+      - namespace: "tailscale"
         server: https://kubernetes.default.svc
     clusterResourceWhitelist:
       - group: "*"
@@ -46,6 +49,57 @@ applications:
     destination:
       server: https://kubernetes.default.svc
       namespace: cert-manager
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+      retry:
+        limit: 3
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
+
+  # ---------------------------------------------------------------------------
+  # Tailscale Kubernetes Operator - tailnet-only exposure for in-cluster
+  # workloads (first consumer: Immich, see dev-apps' dev-immich). Deliberately
+  # NOT the shared Cloudflare tunnel - this is for things that must stay off
+  # the public internet.
+  #
+  # oauth.clientId/clientSecret are left blank in dev-values.yaml on purpose:
+  # the chart falls back to expecting a pre-existing Secret named
+  # "operator-oauth" in the tailscale namespace (keys: client_id,
+  # client_secret). Create the OAuth client in the Tailscale admin console
+  # (Settings > OAuth clients) with write scope for General/Services,
+  # Devices/Core, and Keys/Auth Keys, tagged tag:k8s-operator, then:
+  #
+  #   kubectl create secret generic operator-oauth -n tailscale \
+  #     --from-literal=client_id=<id> --from-literal=client_secret=<secret> \
+  #     --dry-run=client -o yaml > charts/tailscale-operator/dev-secrets.enc.yaml
+  #   sops -e -i charts/tailscale-operator/dev-secrets.enc.yaml
+  #   task secret:apply FILE=charts/tailscale-operator/dev-secrets.enc.yaml
+  #
+  # Also requires tag:k8s-operator / tag:k8s in the tailnet's ACL tagOwners
+  # (see the operator's install docs) - also a Bryant/admin-console step.
+  # ---------------------------------------------------------------------------
+  dev-tailscale-operator:
+    namespace: argocd
+    project: dev-core
+    sources:
+      - repoURL: https://pkgs.tailscale.com/helmcharts
+        chart: tailscale-operator
+        targetRevision: 1.104.1
+        helm:
+          valueFiles:
+            - $values/charts/tailscale-operator/dev-values.yaml
+      - repoURL: https://github.com/bkiseu/homelab.git
+        targetRevision: HEAD
+        ref: values
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: tailscale
     syncPolicy:
       automated:
         prune: true
