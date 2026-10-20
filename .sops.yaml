@@ -12,8 +12,7 @@ creation_rules:
   # Any other encrypted files (secrets, etc.)
   - path_regex: .*\.enc\.yaml$
     age:
-      # Add your age public keys here after running scripts/setup-sops.sh
-      # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 1
+      - age1s6g6h5qk6ckrnlq26a9mhgzyf6v55x9vvmpzten8kgdyu7l9y4vsdqtd24  # MacBook 1
       # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 2
 
   # Encrypted values files for Helm charts

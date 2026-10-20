@@ -7,6 +7,11 @@ version: '3'
 vars:
   KUBECONFIG_PATH: ~/.kube/homelab
   ENCRYPTED_KUBECONFIG: kubeconfig.enc.yaml
+  # Task's env: block does not shell-expand $HOME (confirmed - a literal
+  # "$HOME/..." string is passed through unexpanded), so this has to be a
+  # dynamic var instead.
+  SOPS_AGE_KEY_FILE:
+    sh: echo "$HOME/.config/sops/age/keys.txt"
 
 tasks:
   # =============================================================================
@@ -193,6 +198,21 @@ tasks:
     desc: "Edit an encrypted secrets file in-place (usage: task secret:edit FILE=path/to/secrets.enc.yaml)"
     cmds:
       - sops {{.FILE}}
+    requires:
+      vars: [FILE]
+    preconditions:
+      - sh: test -f {{.FILE}}
+        msg: "File {{.FILE}} not found"
+
+  secret:apply:
+    desc: "Decrypt a secrets file and kubectl apply it directly (usage: task secret:apply FILE=path/to/secrets.enc.yaml) - out-of-band since ArgoCD has no SOPS plugin configured in this repo"
+    cmds:
+      - sops -d {{.FILE}} | kubectl apply -f -
+    env:
+      KUBECONFIG: "{{.KUBECONFIG_PATH}}"
+      # macOS sops doesn't reliably find ~/.config/sops/age/keys.txt without
+      # this set explicitly - see scripts/setup-sops.sh.
+      SOPS_AGE_KEY_FILE: "{{.SOPS_AGE_KEY_FILE}}"
     requires:
       vars: [FILE]
     preconditions:

@@ -1,0 +1,18 @@
+# Values for the tailscale/tailscale-operator chart (see
+# argocd/apps/dev/core.yaml, dev-tailscale-operator Application).
+#
+# oauth.clientId/clientSecret are deliberately left blank - per chart
+# convention, leaving this block empty makes the chart expect a
+# pre-existing Secret named "operator-oauth" in the operator's namespace
+# (tailscale) instead, with keys `client_id` and `client_secret`. That
+# Secret is SOPS-encrypted at charts/tailscale-operator/dev-secrets.enc.yaml
+# and applied out-of-band via `task secret:apply` - it's never templated
+# through Helm/git in plaintext. See the PR description for how to create
+# the OAuth client itself in the Tailscale admin console.
+oauth:
+  clientId: ""
+  clientSecret: ""
+
+operatorConfig:
+  defaultTags:
+    - "tag:k8s-operator"

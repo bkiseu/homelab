@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Add namespace to all resources
+namespace: immich
+
+# Reference the base resources
+resources:
+  - ../../../base/immich
+
+# immich-postgres-secret (DB_PASSWORD) is deliberately not a kustomize
+# resource here - it's SOPS-encrypted at charts/immich/dev-secrets.enc.yaml
+# and applied out-of-band via `task secret:apply`, same pattern as the
+# tailscale-operator OAuth secret. See docs/canonical-kubernetes-bootstrap.md
+# - ArgoCD has no SOPS plugin, so it can't decrypt secrets itself.

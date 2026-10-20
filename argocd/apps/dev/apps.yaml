@@ -55,6 +55,36 @@ applications:
           maxDuration: 3m
 
   # ---------------------------------------------------------------------------
+  # Immich - self-hosted photo/video library (test deployment: ML disabled,
+  # modest PVC on watchtower's existing NVMe, tailnet-only via the Tailscale
+  # operator - see dev-core's dev-tailscale-operator). NOT routed through the
+  # shared Cloudflare tunnel. immich-postgres-secret is applied out-of-band,
+  # see kustomize/overlays/dev/immich/kustomization.yaml.
+  # ---------------------------------------------------------------------------
+  dev-immich:
+    namespace: argocd
+    project: dev-apps
+    sources:
+      - repoURL: https://github.com/bkiseu/homelab.git
+        targetRevision: HEAD
+        path: kustomize/overlays/dev/immich
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: immich
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+      retry:
+        limit: 3
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
+
+  # ---------------------------------------------------------------------------
   # Linkding - Self-hosted bookmark manager
   # ---------------------------------------------------------------------------
   dev-linkding:
