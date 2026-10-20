@@ -200,6 +200,18 @@ tasks:
         msg: "File {{.FILE}} not found"
 
   # =============================================================================
+  # Node Maintenance Tasks
+  # =============================================================================
+
+  node:fix-etcd-boot-race:
+    desc: "Widen etcd/k8sd's restart burst allowance so a reboot's network-not-ready race gets ~2min of retries instead of giving up in <1s (see docs/canonical-kubernetes-bootstrap.md)"
+    cmds:
+      - ./scripts/fix-etcd-boot-race.sh
+    preconditions:
+      - sh: test -f ./scripts/fix-etcd-boot-race.sh
+        msg: "fix-etcd-boot-race.sh not found"
+
+  # =============================================================================
   # Blog Tasks
   # =============================================================================
 
