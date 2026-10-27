@@ -220,6 +220,25 @@ tasks:
         msg: "File {{.FILE}} not found"
 
   # =============================================================================
+  # Tailscale (terraform/tailscale)
+  # =============================================================================
+
+  tailscale:bootstrap:
+    desc: "One-time: store the bootstrap OAuth client Terraform uses to manage the tailnet (SOPS-encrypted)"
+    cmds:
+      - ./scripts/tailscale-bootstrap-credential.sh
+
+  tailscale:plan:
+    desc: "Show tailnet changes (policy, DNS, HTTPS, operator OAuth client + Secret). Off-LAN: TF_VAR_kube_server=https://100.122.233.25:6443"
+    cmds:
+      - ./scripts/tailscale-tf.sh plan
+
+  tailscale:apply:
+    desc: "Apply tailnet changes and re-encrypt state"
+    cmds:
+      - ./scripts/tailscale-tf.sh apply
+
+  # =============================================================================
   # Node Maintenance Tasks
   # =============================================================================
 
