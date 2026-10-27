@@ -4,11 +4,9 @@
 # oauth.clientId/clientSecret are deliberately left blank - per chart
 # convention, leaving this block empty makes the chart expect a
 # pre-existing Secret named "operator-oauth" in the operator's namespace
-# (tailscale) instead, with keys `client_id` and `client_secret`. That
-# Secret is SOPS-encrypted at charts/tailscale-operator/dev-secrets.enc.yaml
-# and applied out-of-band via `task secret:apply` - it's never templated
-# through Helm/git in plaintext. See the PR description for how to create
-# the OAuth client itself in the Tailscale admin console.
+# (tailscale) instead, with keys `client_id` and `client_secret`. Terraform
+# creates both the OAuth client and that Secret (terraform/tailscale), so the
+# credential never goes through Helm/git in plaintext.
 oauth:
   clientId: ""
   clientSecret: ""
