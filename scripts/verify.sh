@@ -118,17 +118,24 @@ echo "# 5. Plaintext-secret scan of the PR diff"
 echo "############################################"
 BASE_REF="${VERIFY_BASE_REF:-origin/main}"
 if git rev-parse --verify "$BASE_REF" > /dev/null 2>&1; then
-  # Exclude this gate's own files: they legitimately mention these patterns
-  # as pattern definitions/documentation, not leaked secrets.
-  diff_added="$(git diff "$BASE_REF"...HEAD -- . \
-      ':(exclude)scripts/verify.sh' \
-      ':(exclude).claude/skills/verify/SKILL.md' \
-    | grep '^+' | grep -v '^+++' || true)"
+  # No file exclusions here on purpose (see SKILL.md Incidents: an earlier
+  # version excluded this script and SKILL.md from their own scan, which
+  # meant a real secret pasted into either file would pass silently). The
+  # patterns below are instead written so their own definitions don't match
+  # themselves: a single-char bracket class like [k] matches only that
+  # character, so it doesn't change what the regex matches, but it breaks
+  # up the literal substring that grep would otherwise find in this file.
+  diff_added="$(git diff "$BASE_REF"...HEAD -- . | grep '^+' | grep -v '^+++' || true)"
 
-  secret_patterns='tskey-|BEGIN [A-Z ]*PRIVATE KEY|AGE-SECRET-KEY-|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}'
+  tskey_pat='ts[k]ey-'                        # Tailscale auth-key prefix
+  pem_pat='BEGIN [A-Z ]*PRIVATE KE[Y]'        # PEM private-key header
+  age_key_pat='AGE-SECRET-KE[Y]-'             # age private-key prefix
+  ghp_pat='ghp[_][A-Za-z0-9]{20,}'            # classic GitHub PAT
+  gh_fine_pat='github_pa[t]_[A-Za-z0-9_]{20,}' # fine-grained GitHub PAT
+  secret_patterns="${tskey_pat}|${pem_pat}|${age_key_pat}|${ghp_pat}|${gh_fine_pat}"
   hits="$(printf '%s\n' "$diff_added" | grep -E "$secret_patterns" || true)"
   if [ -n "$hits" ]; then
-    fail "diff contains a plaintext-secret-looking pattern (tskey-/PRIVATE KEY/AGE-SECRET-KEY-/ghp_/github_pat_) - STOP, do not merge:"
+    fail "diff contains a token/key pattern (Tailscale auth key / PEM private key / age secret key / GitHub PAT) - STOP, do not merge:"
     printf '%s\n' "$hits"
   fi
 
