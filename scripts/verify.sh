@@ -118,7 +118,12 @@ echo "# 5. Plaintext-secret scan of the PR diff"
 echo "############################################"
 BASE_REF="${VERIFY_BASE_REF:-origin/main}"
 if git rev-parse --verify "$BASE_REF" > /dev/null 2>&1; then
-  diff_added="$(git diff "$BASE_REF"...HEAD -- . | grep '^+' | grep -v '^+++' || true)"
+  # Exclude this gate's own files: they legitimately mention these patterns
+  # as pattern definitions/documentation, not leaked secrets.
+  diff_added="$(git diff "$BASE_REF"...HEAD -- . \
+      ':(exclude)scripts/verify.sh' \
+      ':(exclude).claude/skills/verify/SKILL.md' \
+    | grep '^+' | grep -v '^+++' || true)"
 
   secret_patterns='tskey-|BEGIN [A-Z ]*PRIVATE KEY|AGE-SECRET-KEY-|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}'
   hits="$(printf '%s\n' "$diff_added" | grep -E "$secret_patterns" || true)"
