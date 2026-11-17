@@ -14,6 +14,10 @@ kubeconfig.yaml
 *.tfvars
 !*.tfvars.example
 
+# scripts/verify.sh's isolated venv for PyYAML (bootstrapped on first run,
+# never committed - avoids touching the system/Homebrew Python install)
+scripts/.verify-venv/
+
 # IDE
 .idea/
 .vscode/

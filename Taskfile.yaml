@@ -220,6 +220,18 @@ tasks:
         msg: "File {{.FILE}} not found"
 
   # =============================================================================
+  # PR Verification
+  # =============================================================================
+
+  verify:
+    desc: "Run the pre-merge verification gate (kustomize/helm/terraform render, SOPS ciphertext, secret-diff scan, ArgoCD YAML parse) - see .claude/skills/verify/SKILL.md"
+    cmds:
+      - ./scripts/verify.sh
+    preconditions:
+      - sh: test -f ./scripts/verify.sh
+        msg: "verify.sh not found"
+
+  # =============================================================================
   # Node Maintenance Tasks
   # =============================================================================
 

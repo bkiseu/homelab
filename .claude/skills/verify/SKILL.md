@@ -1,91 +1,42 @@
 ---
 name: verify
-description: Checks that must pass before a homelab PR merges — render every Kustomize overlay and Helm chart's values, validate any Terraform, confirm SOPS files are actually encrypted, and confirm ArgoCD app YAML parses. Use before merging any PR in this repo.
+description: Checks that must pass before a homelab PR merges — render every Kustomize overlay and Helm chart's values, validate any Terraform, confirm SOPS files are actually encrypted, scan the diff for plaintext secrets, and confirm ArgoCD app YAML parses. Use before merging any PR in this repo.
 ---
 
 # Homelab PR verification
 
-Run before merging anything in `bkiseu/homelab`. None of this touches the live cluster — every check below is local rendering/parsing against the working tree, no `kubectl apply`, no `argocd app sync`.
-
-## 1. Kustomize overlays build
-
-Every directory under `kustomize/overlays/*/*` must render without error:
+Run before merging anything in `bkiseu/homelab`:
 
 ```bash
-for d in kustomize/overlays/*/*/; do
-  echo "== $d =="
-  kubectl kustomize "$d" > /dev/null || echo "FAILED: $d"
-done
+task verify
 ```
 
-A failure here usually means a missing/renamed resource in the overlay's `kustomization.yaml`, or a base resource that doesn't exist at the referenced path.
+That runs `scripts/verify.sh`, which does everything below in one pass and exits non-zero if any section fails. None of it touches the live cluster — every check is local rendering/parsing against the working tree, no `kubectl apply`, no `argocd app sync`.
 
-## 2. Helm chart values
+## What it checks
 
-Every chart under `charts/<app>/` with a `dev-values.yaml` must template cleanly against the chart/version pinned in the matching ArgoCD layer file (`argocd/apps/dev/*.yaml`, `sources[].targetRevision`):
-
-```bash
-for f in charts/*/dev-values.yaml; do
-  chart_dir=$(dirname "$f")
-  app=$(basename "$chart_dir")
-  echo "== $app =="
-  # repoURL/chart/targetRevision for $app live in argocd/apps/dev/*.yaml - match
-  # them manually (grep for the app name) since values files don't carry chart
-  # identity themselves, then:
-  #   helm template <app> <repoURL> --repo <repoURL>... -f "$f"
-  # or, for a chart already in a local Helm repo cache, --version <targetRevision>
-done
-```
-
-There's no single mechanical loop here because each layer file's `sources` block is the source of truth for which chart+version a `dev-values.yaml` belongs to — check `argocd/apps/dev/core.yaml` and `apps.yaml` for the pairing before templating. A failure usually means the values file uses a key the pinned chart version doesn't recognize (check the chart's version bump notes) or a required value was left unset.
-
-## 3. Terraform (once `terraform/` exists)
-
-As of this writing `terraform/` doesn't exist in `main` yet (it's introduced in PR #5, Tailscale-via-Terraform — not merged). Once it lands:
-
-```bash
-terraform -chdir=terraform fmt -check -recursive
-terraform -chdir=terraform validate
-```
-
-Skip this section with a note in the PR if `terraform/` isn't present yet — don't fail a PR over a directory that doesn't exist on the branch it's based on.
-
-## 4. SOPS files are actually encrypted
-
-Every file matching `.sops.yaml`'s patterns (`*.enc.yaml`, `*-secrets.yaml`, `kubeconfig.enc.yaml`) must contain only SOPS ciphertext — never plaintext secret values, even transiently in a diff:
-
-```bash
-for f in $(git ls-files | grep -E '\.enc\.yaml$|-secrets\.yaml$'); do
-  echo "== $f =="
-  # Every leaf secret value should show up as ENC[...]; grep for ENC[ and compare
-  # count against the number of secret keys sops's own metadata lists.
-  grep -c 'ENC\[' "$f" || echo "FAILED: $f has no ENC[ markers - may be plaintext"
-  # Confirm sops itself considers it valid ciphertext (requires the age key):
-  sops -d "$f" > /dev/null && echo "decrypts OK" || echo "FAILED: $f does not decrypt"
-done
-```
-
-A failure here is a stop-the-line issue, not a style nit — if `grep -c 'ENC\['` comes back 0, treat the PR as leaking a secret and flag it to Bryant directly rather than merging, even if asked to.
-
-## 5. ArgoCD app layer YAML parses
-
-Every file under `argocd/apps/dev/*.yaml` and `argocd/applicationsets/*.yaml` must be valid YAML with the `projects:`/`applications:` (or ApplicationSet) shape the `argocd-apps` chart expects:
-
-```bash
-for f in argocd/apps/dev/*.yaml argocd/applicationsets/*.yaml; do
-  echo "== $f =="
-  python3 -c "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$f" || echo "FAILED: $f"
-done
-```
-
-This only catches YAML syntax errors and gross shape problems, not semantic ones (e.g. a `destination.namespace` ArgoCD will reject at sync time) — those still need `kubectl apply --dry-run=server` against a live cluster, which this skill deliberately doesn't do.
+1. **Kustomize overlays** — `kubectl kustomize` against every directory under `kustomize/overlays/*/*/`.
+2. **Helm charts, mechanically** — `scripts/verify_helm_apps.py` parses `argocd/apps/dev/*.yaml` (via a PyYAML-equipped interpreter in `scripts/.verify-venv`, bootstrapped on first run and gitignored — never installed into the system/Homebrew Python) to find every Application whose `sources[]` includes a `chart:` key, pulling `repoURL`/`chart`/`targetRevision` and resolving its `$values/...` valueFiles paths. `verify.sh` then runs `helm template <name> <chart> --repo <repoURL> --version <targetRevision> -f <values>` for each — no manual pairing to keep in sync by hand.
+3. **Terraform** — loops over `terraform/*/` running `fmt -check` then `init -backend=false && validate`. Skips cleanly (not a failure) if `terraform/` doesn't exist yet or has no module directories.
+4. **SOPS ciphertext** — `git ls-files -z` (NUL-separated, so filenames with spaces don't break it) over `*.enc.yaml`, `*-secrets.yaml`, `*.enc.json`. Zero `ENC[` markers in a file is an automatic FAIL, not a warning — and `sops -d` must also succeed against it.
+5. **Plaintext-secret scan of the diff** — `git diff origin/main...HEAD` (override the base with `VERIFY_BASE_REF` if needed), restricted to added lines, grepped for `tskey-`, `BEGIN ... PRIVATE KEY`, `AGE-SECRET-KEY-`, `ghp_`/`github_pat_`, and any `client_secret:`/`password:` holding a long value that isn't already `ENC[`-wrapped.
+6. **ArgoCD app layer YAML** — parses every `argocd/apps/dev/*.yaml` and `argocd/applicationsets/*.yaml` with `yaml.safe_load` to catch syntax/shape errors. Doesn't catch semantic issues (e.g. a `destination.namespace` ArgoCD would reject at sync time) — that still needs `kubectl apply --dry-run=server` against a live cluster, which this deliberately skips.
 
 ## Reading failures
 
-- Kustomize/Helm render failures point at the overlay/chart, not the cluster — reproduce locally before assuming it's an environment problem.
-- A SOPS failure (missing `ENC[`, or `sops -d` erroring) means either the file was committed unencrypted, or it's encrypted for an age recipient whose key isn't on this machine — check `.sops.yaml`'s recipient list for the path before assuming the second.
-- YAML parse failures in ArgoCD layer files are almost always a bad indent under `applications:` or a missing `---`/duplicate key — `python3 -c "...yaml.safe_load..."` will print the line number.
+- Kustomize/Helm render failures point at the overlay/chart, not the cluster — reproduce locally (`kubectl kustomize <dir>` or the printed `helm template` command) before assuming it's an environment problem.
+- A Terraform failure from `fmt -check` means run `terraform fmt` and recommit; from `validate`, read the printed error — it's almost always a missing required variable or provider block.
+- A SOPS or diff-scan failure is a stop-the-line issue, not a style nit. If either fires, flag it to Bryant directly rather than merging, even if asked to.
+- YAML parse failures in ArgoCD layer files are almost always a bad indent under `applications:` or a missing `---`/duplicate key — the script's Python error includes a line number.
 
 ## Known failures
 
-_(Append an entry here per incident: what broke, which check should have caught it but didn't, and what changed to close the gap. Empty until the first one.)_
+Checks that have broken before, their root cause, and open fix-queue items. Empty until the first one — append here when a check itself turns out wrong (not when it correctly caught something; that's an Incident, below).
+
+_(none yet)_
+
+## Incidents
+
+When something slips through verification and reaches `main` anyway: find the root cause, add or fix a check so the same class of problem can't slip through silently again, then log it here — dated, with what broke and which check changed.
+
+- **2026-11 — Tailscale OAuth client setup was manual console clicks, not code.** PR #5 (Tailscale-via-Terraform) exists specifically to close this: the OAuth client and its tags were originally created by hand in the Tailscale admin console per the instructions in `argocd/apps/dev/core.yaml`'s `dev-tailscale-operator` comment block, rather than declared in Terraform like everything else in this repo is meant to be (Bryant's rule: infra changes live in code, not console clicks). No automated check catches "a step that should have been Terraform wasn't" — that's a review-judgment call, not something `verify.sh` can currently assert. Once #5 merges, new Tailscale-admin-console resources should go through its Terraform module instead of a comment-block runbook.
