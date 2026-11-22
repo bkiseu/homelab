@@ -224,12 +224,12 @@ tasks:
   # =============================================================================
 
   tailscale:bootstrap:
-    desc: "One-time: store the bootstrap OAuth client Terraform uses to manage the tailnet (SOPS-encrypted)"
+    desc: "One-time: store the Tailscale API access token Terraform uses to manage the tailnet (SOPS-encrypted)"
     cmds:
       - ./scripts/tailscale-bootstrap-credential.sh
 
   tailscale:plan:
-    desc: "Show tailnet changes (policy, DNS, HTTPS, operator OAuth client + Secret). Off-LAN: TF_VAR_kube_server=https://100.122.233.25:6443"
+    desc: "Show tailnet changes (policy, DNS, HTTPS, operator OAuth client + Secret)."
     cmds:
       - ./scripts/tailscale-tf.sh plan
 
@@ -237,6 +237,18 @@ tasks:
     desc: "Apply tailnet changes and re-encrypt state"
     cmds:
       - ./scripts/tailscale-tf.sh apply
+
+  # =============================================================================
+  # PR Verification
+  # =============================================================================
+
+  verify:
+    desc: "Run the pre-merge verification gate (kustomize/helm/terraform render, SOPS ciphertext, secret-diff scan, ArgoCD YAML parse) - see .claude/skills/verify/SKILL.md"
+    cmds:
+      - ./scripts/verify.sh
+    preconditions:
+      - sh: test -f ./scripts/verify.sh
+        msg: "verify.sh not found"
 
   # =============================================================================
   # Node Maintenance Tasks

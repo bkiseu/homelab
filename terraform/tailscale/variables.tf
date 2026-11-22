@@ -4,7 +4,7 @@ variable "kubeconfig_path" {
 }
 
 variable "kube_server" {
-  description = "Optional API server override, e.g. https://100.122.233.25:6443 when off the home LAN."
+  description = "API server. Defaults to sentinel over the tailnet; set to \"\" to use the kubeconfig's."
   type        = string
-  default     = ""
+  default     = "https://100.122.233.25:6443"
 }

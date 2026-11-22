@@ -7,7 +7,7 @@
 #   scripts/tailscale-tf.sh plan
 #   scripts/tailscale-tf.sh apply
 #
-# Off the home LAN: TF_VAR_kube_server=https://100.122.233.25:6443
+# Talks to the cluster over the tailnet by default (variables.tf: kube_server).
 set -euo pipefail
 cd "$(dirname "$0")/../terraform/tailscale"
 
