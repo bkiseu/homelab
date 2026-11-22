@@ -14,3 +14,7 @@ resources:
 # immich-postgres-secret in overlays/dev/immich. ArgoCD has no SOPS plugin, so
 # it can't decrypt secrets itself; the Deployment references the resulting
 # Secret by name only.
+#
+# ghcr-pull is the docker-registry Secret for pulling the private
+# ghcr.io/bkiseu/famhub image (see kustomize/base/famhub/deployment.yaml).
+# Bryant creates it out-of-band too; we never handle the token.

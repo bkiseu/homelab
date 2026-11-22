@@ -18,6 +18,23 @@ spec:
         app.kubernetes.io/name: famhub
         app.kubernetes.io/component: app
     spec:
+      # ghcr.io/bkiseu/famhub is a private package — not anonymously pullable — so
+      # the pod needs docker-registry credentials. Reference the Secret by name
+      # only; Bryant creates it out-of-band (it holds a token). The Secret must be
+      # `kubernetes.io/dockerconfigjson` type named `ghcr-pull` in the famhub
+      # namespace, e.g.:
+      #   kubectl -n famhub create secret docker-registry ghcr-pull \
+      #     --docker-server=ghcr.io --docker-username=<user> \
+      #     --docker-password=<PAT with packages:read>
+      # We never create or handle the token, and do not change the package's
+      # public/private visibility.
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       # FamHub keeps its SQLite ledger and photos on node-local OpenEBS
       # rawfile-csi RWO PVCs (WaitForFirstConsumer), so this pod is pinned to
       # the same node the volumes bind to — same pattern as Immich.
@@ -29,63 +46,37 @@ spec:
           # floating :latest tag — see famhub/.github/workflows/docker.yml
           # (type=sha,format=long). Bump this line to roll the app forward.
           image: ghcr.io/bkiseu/famhub:89b0e26f2f70df98f05a2317e1cc4f6d1a7a5e64
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
+          envFrom:
+            # The app's config + secrets come from the `famhub-env` Secret (a
+            # plain `data`/`stringData` Secret), referenced by name only; values
+            # live in SOPS-encrypted charts/famhub/dev-secrets.enc.yaml applied
+            # out-of-band via `task secret:apply FILE=...`. ArgoCD has no SOPS
+            # plugin. Each key becomes one env var. Expected keys (no values
+            # here): MEMBERS_CONFIG, CALENDAR_ICS_URL, CALENDAR_ICS_URL_<ID>,
+            # MEMBER_PIN_<ID>, TODOIST_*, TODOIST_UID_<ID>, MEALIE_URL,
+            # MEALIE_TOKEN, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT,
+            # PUSH_MEMBERS, BUDGET_UNLOCK_MEMBERS, PRESENCE_TOKEN, ...
+            - secretRef:
+                name: famhub-env
           env:
             - name: TZ
               value: Africa/Nairobi
-            # FamHub is reachable only via the tailnet (see ingress.yaml).
-            # BIND_ADDR must stay 0.0.0.0 inside the pod — the Ingress/tailscale
-            # proxy reaches the container here; the privacy boundary is the
-            # tailscale Ingress, not a loopback bind.
-            - name: BIND_ADDR
-              value: "0.0.0.0"
-            # Secrets are referenced by name only; values live in SOPS-encrypted
-            # charts/famhub/dev-secrets.enc.yaml applied out-of-band via
-            # `task secret:apply FILE=...`. ArgoCD has no SOPS plugin.
-            # TODOIST / CALENDAR / MEALIE / MONARCH / VAPID env vars are set
-            # here from the famhub-env Secret (key: value per env var), and
-            # tokens never appear in git.
-            - name: TODOIST_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: famhub-env
-                  key: TODOIST_TOKEN
-                  optional: true
-            - name: MEALIE_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: famhub-env
-                  key: MEALIE_TOKEN
-                  optional: true
-            - name: MONARCH_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: famhub-env
-                  key: MONARCH_PASSWORD
-                  optional: true
-            - name: MONARCH_TOTP_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: famhub-env
-                  key: MONARCH_TOTP_SECRET
-                  optional: true
-            - name: VAPID_PUBLIC_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: famhub-env
-                  key: VAPID_PUBLIC_KEY
-                  optional: true
-            - name: VAPID_PRIVATE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: famhub-env
-                  key: VAPID_PRIVATE_KEY
-                  optional: true
-            - name: VAPID_SUBJECT
-              valueFrom:
-                secretKeyRef:
-                  name: famhub-env
-                  key: VAPID_SUBJECT
-                  optional: true
+            # Explicitly NOT a demo instance: DEMO=0 forces isDemo() false so the
+            # server never seeds fake family data into the persistent DB on first
+            # boot (see server/demo/seed.js). The real family roster also must be
+            # non-fallback: point MEMBERS_CONFIG (in famhub-env) at a mounted
+            # members.json. That file holds real names, so it is NOT committed to
+            # git or the image — mount it how Bryant prefers (a ConfigMap, a
+            # Secret, or hosted on the node) and set MEMBERS_CONFIG=<path> in
+            # famhub-env. No family names/DOBs appear in this repo.
+            - name: DEMO
+              value: "0"
           ports:
             - containerPort: 8080
           resources:
@@ -140,11 +131,15 @@ spec:
 # different lifecycles and backup needs:
 #   famhub-db-pvc    — SQLite economy/journal ledger (single source of truth)
 #   famhub-data-pvc  — journal photos + nightly DB backups
-# The app runs its own nightly backup into /data (see server/), so both live
-# on the watchtower NVMe. Off-box backup of /data (Nightly.sqlite.journal +
-# photos) must be arranged separately — recommended: schedule a nightly
-# `kubectl exec -- tar -C /data -czf - .` piped to off-cluster storage, or run
-# restic against the OpenEBS volume. Not wired up yet — flagged for the CoS.
+# The app's server/db/backup.js writes the nightly backup to
+# <root>/data/backups/ (confirmed against the source and the Dockerfile's
+# /data mount) — i.e. onto the famhub-data-pvc. NOTE this is the SAME watchtower
+# disk as the live DB (node-local OpenEBS), NOT an off-box copy: it only guards
+# against a lost/invalid /db file, not against watchtower's disk dying. A true
+# off-box backup of /data (backups + photos) must still be arranged separately —
+# recommended: nightly `kubectl exec -- tar -C /data -czf - .` piped to
+# off-cluster storage, or restic against the volume. Not wired up yet — flagged
+# for the CoS.
 # -----------------------------------------------------------------------------
 apiVersion: v1
 kind: PersistentVolumeClaim
