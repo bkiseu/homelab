@@ -1,0 +1,4 @@
+# Plaintext state only exists while scripts/tailscale-tf.sh runs; the
+# committed copy is terraform.tfstate.enc.json.
+terraform.tfstate
+terraform.tfstate.backup

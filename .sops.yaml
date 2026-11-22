@@ -15,6 +15,11 @@ creation_rules:
       - age1s6g6h5qk6ckrnlq26a9mhgzyf6v55x9vvmpzten8kgdyu7l9y4vsdqtd24  # MacBook 1
       # - age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # MacBook 2
 
+  # Encrypted Terraform state (terraform/tailscale)
+  - path_regex: .*\.enc\.json$
+    age:
+      - age1s6g6h5qk6ckrnlq26a9mhgzyf6v55x9vvmpzten8kgdyu7l9y4vsdqtd24  # MacBook 1
+
   # Encrypted values files for Helm charts
   - path_regex: .*-secrets\.yaml$
     age:

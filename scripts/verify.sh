@@ -155,9 +155,9 @@ fi
 
 echo
 echo "############################################"
-echo "# 6. ArgoCD app layer YAML parses"
+echo "# 6. ArgoCD app layer and Taskfile YAML parse"
 echo "############################################"
-yaml_targets=(argocd/apps/dev/*.yaml argocd/applicationsets/*.yaml)
+yaml_targets=(Taskfile.yaml argocd/apps/dev/*.yaml argocd/applicationsets/*.yaml)
 for f in "${yaml_targets[@]}"; do
   [ -e "$f" ] || continue
   if "$VENV_PY" -c "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$f" 2>/tmp/verify-yaml-err; then

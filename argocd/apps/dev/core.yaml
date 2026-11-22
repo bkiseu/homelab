@@ -71,18 +71,9 @@ applications:
   # oauth.clientId/clientSecret are left blank in dev-values.yaml on purpose:
   # the chart falls back to expecting a pre-existing Secret named
   # "operator-oauth" in the tailscale namespace (keys: client_id,
-  # client_secret). Create the OAuth client in the Tailscale admin console
-  # (Settings > OAuth clients) with write scope for General/Services,
-  # Devices/Core, and Keys/Auth Keys, tagged tag:k8s-operator, then:
-  #
-  #   kubectl create secret generic operator-oauth -n tailscale \
-  #     --from-literal=client_id=<id> --from-literal=client_secret=<secret> \
-  #     --dry-run=client -o yaml > charts/tailscale-operator/dev-secrets.enc.yaml
-  #   sops -e -i charts/tailscale-operator/dev-secrets.enc.yaml
-  #   task secret:apply FILE=charts/tailscale-operator/dev-secrets.enc.yaml
-  #
-  # Also requires tag:k8s-operator / tag:k8s in the tailnet's ACL tagOwners
-  # (see the operator's install docs) - also a Bryant/admin-console step.
+  # client_secret). That Secret, the OAuth client behind it, the tagOwners
+  # it needs and the tailnet's HTTPS/MagicDNS settings are all Terraform -
+  # see terraform/tailscale and `task tailscale:apply`.
   # ---------------------------------------------------------------------------
   dev-tailscale-operator:
     namespace: argocd

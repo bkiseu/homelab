@@ -1,0 +1,24 @@
+// Tailnet policy file, applied by terraform/tailscale. Do not edit in the
+// admin console - changes there are overwritten on the next apply.
+{
+	"tagOwners": {
+		// The k8s operator's OAuth client.
+		"tag:k8s-operator": ["autogroup:admin"],
+		// Proxies the operator creates (one per Ingress).
+		"tag:k8s": ["tag:k8s-operator"],
+	},
+
+	// Allow-all for now. Tighten later (e.g. family devices -> Immich only).
+	"grants": [
+		{"src": ["*"], "dst": ["*"], "ip": ["*"]},
+	],
+
+	"ssh": [
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+}
