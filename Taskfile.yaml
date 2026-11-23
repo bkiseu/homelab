@@ -262,6 +262,14 @@ tasks:
       - sh: test -f ./scripts/fix-etcd-boot-race.sh
         msg: "fix-etcd-boot-race.sh not found"
 
+  node:pin-ips:
+    desc: "Pin a Pi node's LAN address via a netplan override so it survives reboot (usage: task node:pin-ips -- [<node>] | --apply <node>). Dry-run by default; see scripts/pin-node-ips.sh's header for the MAC/IP table, limitation, and undo."
+    cmds:
+      - ./scripts/pin-node-ips.sh {{.CLI_ARGS}}
+    preconditions:
+      - sh: test -f ./scripts/pin-node-ips.sh
+        msg: "pin-node-ips.sh not found"
+
   # =============================================================================
   # Blog Tasks
   # =============================================================================
