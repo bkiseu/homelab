@@ -67,22 +67,45 @@
 # end-to-end in a container with a password-protected sudo user (key-based
 # SSH login, password-required sudo - the same shape as these nodes): a
 # bare `ssh host sudo whoami` reproduces that exact error; `ssh -t host sudo
-# bash /tmp/script.sh` correctly opens a pty, prompts for the password
+# bash <remote script>` correctly opens a pty, prompts for the password
 # (Bryant types it, same as his own `ssh -t` habit - this script never
 # sees or stores it), and the remote script runs as root. Because `-t`
 # allocates a real pty, piping the override's contents over stdin isn't an
 # option here - pin-node-ip-remote.sh re-derives it from the IP argument
 # instead of having it piped in.
 #
+# WHY the remote copy lives in $HOME, not a fixed /tmp path: /tmp is
+# world-writable, so a fixed name there is a symlink/swap target for
+# another local user - low stakes on a single-user Pi, but there's no
+# reason to leave it open. mktemp creates a randomly-named file directly in
+# the SSH user's home (`~/.pin-node-ip-remote.XXXXXX.sh`, chmod 700), and
+# it's removed on every exit from run_node below - success, an early
+# failure (bad mktemp/scp/sudo), or a Ctrl-C while the remote sudo/script
+# is running (trap on INT/TERM, not just the normal fall-through path).
+#
+# A real Ctrl-C at an actual terminal does clean this up: tested by sending
+# the interrupt into the pty right at the sudo password prompt, and the
+# remote temp file was gone afterward. That works because a terminal
+# delivers SIGINT to the whole foreground process group at once - this
+# script AND the `ssh -t` child both get it, the child dies, and bash's
+# own wait() for that child unblocks, running the pending trap right away.
+# Separately confirmed what does NOT clean up promptly: sending SIGINT to
+# only this script's PID (bypassing the terminal/process group, the way a
+# process supervisor might) while `ssh -t` is still blocked on the
+# password prompt - bash defers a trap until the foreground command it's
+# waiting on actually returns, so the file sits there until that ssh
+# session eventually ends on its own. Real interactive Ctrl-C doesn't hit
+# this because of the process-group delivery above; a bare `kill` targeting
+# just this process's PID would.
+#
 # WHAT THIS DOESN'T READ: never opens /etc/netplan/50-cloud-init.yaml's
 # contents - it holds the wifi PSK. The one thing read from it is a single
 # line (the top-level device-id key under `wifis:`), via a narrow grep that
 # cannot match an access-points/password line. See pin-node-ip-remote.sh.
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REMOTE_SCRIPT="$SCRIPT_DIR/pin-node-ip-remote.sh"
-REMOTE_TMP_PATH="/tmp/pin-node-ip-remote.sh"
 
 # node -> "ssh_target mac ip". A plain case statement, not `declare -A`:
 # this script runs on Bryant's Mac, not the Pis, and macOS's default
@@ -139,13 +162,49 @@ TARGETS=($ALL_NODES)
 
 # --- per-node run ------------------------------------------------------------
 
+remote_cleanup() {
+  local node="$1" ssh_target="$2" remote_tmp="$3"
+  [ -n "$remote_tmp" ] || return 0
+  ssh -o ConnectTimeout=10 "$ssh_target" "rm -f '$remote_tmp'" 2>/dev/null \
+    || log "$node" "WARN: could not remove $remote_tmp from the node - clean it up by hand"
+}
+
 run_node() {
   local node="$1" ssh_target="$2" mac="$3" ip="$4" mode="$5"
   local rc=0
+  local remote_tmp=""
 
-  log "$node" "copying remote script over $ssh_target ..."
-  if ! scp -o ConnectTimeout=10 -q "$REMOTE_SCRIPT" "${ssh_target}:${REMOTE_TMP_PATH}"; then
+  # Covers Ctrl-C/SIGTERM while this node is being processed, not just the
+  # normal fall-through at the bottom of this function. Single-quoted so
+  # $remote_tmp is read at trap-FIRE time (whatever mktemp below set it
+  # to), not frozen empty at trap-SET time.
+  trap 'remote_cleanup "$node" "$ssh_target" "$remote_tmp"' INT TERM
+
+  log "$node" "creating a private temp path on $node ..."
+  # Only stdout is captured into remote_tmp - anything ssh itself writes to
+  # stderr (a first-connection host-key warning, a banner, whatever) still
+  # reaches this terminal but can't corrupt the path we're about to scp to
+  # and later rm. Caught exactly this happening during testing: with stderr
+  # merged in, a host-key warning ended up prepended to $remote_tmp, which
+  # broke both the scp (wrong path) and the rollback cleanup (couldn't find
+  # the file mktemp had actually created).
+  if ! remote_tmp="$(ssh -o ConnectTimeout=10 "$ssh_target" \
+    'f=$(mktemp "$HOME/.pin-node-ip-remote.XXXXXX.sh") && chmod 700 "$f" && echo "$f"')"; then
+    log "$node" "FAIL: could not create a temp path on $node"
+    trap - INT TERM
+    return 1
+  fi
+  if [ -z "$remote_tmp" ]; then
+    log "$node" "FAIL: mktemp on $node returned an empty path"
+    trap - INT TERM
+    return 1
+  fi
+
+  log "$node" "copying remote script to $remote_tmp ..."
+  if ! scp -o ConnectTimeout=10 -q "$REMOTE_SCRIPT" "${ssh_target}:${remote_tmp}"; then
     log "$node" "FAIL: could not scp the remote script to $node"
+    remote_cleanup "$node" "$ssh_target" "$remote_tmp"
+    trap - INT TERM
     return 1
   fi
 
@@ -153,13 +212,12 @@ run_node() {
   # with a real pty. Output streams back live, so the prompt (and anything
   # else) shows up in this terminal as it happens.
   log "$node" "running ($mode) over $ssh_target - sudo will prompt for your password on the node ..."
-  if ! ssh -t -o ConnectTimeout=10 "$ssh_target" "sudo bash '$REMOTE_TMP_PATH' '$mode' '$node' '$mac' '$ip'"; then
+  if ! ssh -t -o ConnectTimeout=10 "$ssh_target" "sudo bash '$remote_tmp' '$mode' '$node' '$mac' '$ip'"; then
     rc=1
   fi
 
-  ssh -o ConnectTimeout=10 "$ssh_target" "rm -f '$REMOTE_TMP_PATH'" \
-    || log "$node" "WARN: could not remove $REMOTE_TMP_PATH from the node - clean it up by hand"
-
+  remote_cleanup "$node" "$ssh_target" "$remote_tmp"
+  trap - INT TERM
   return "$rc"
 }
 
