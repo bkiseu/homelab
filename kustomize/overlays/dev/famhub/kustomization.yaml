@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Add namespace to all resources
+namespace: famhub
+
+# Reference the base resources
+resources:
+  - ../../../base/famhub
+
+# famhub-env is deliberately not a kustomize resource here — it's SOPS-encrypted
+# at charts/famhub/dev-secrets.enc.yaml and applied out-of-band via
+# `task secret:apply FILE=charts/famhub/dev-secrets.enc.yaml`, same pattern as
+# immich-postgres-secret in overlays/dev/immich. ArgoCD has no SOPS plugin, so
+# it can't decrypt secrets itself; the Deployment references the resulting
+# Secret by name only.
+#
+# ghcr-pull is the docker-registry Secret for pulling the private
+# ghcr.io/bkiseu/famhub image (see kustomize/base/famhub/deployment.yaml).
+# Bryant creates it out-of-band too; we never handle the token.

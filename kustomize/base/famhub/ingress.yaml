@@ -1,0 +1,27 @@
+# Tailnet-only exposure via the Tailscale Kubernetes Operator (see
+# argocd/apps/dev/core.yaml for the operator's own Helm Application).
+# Deliberately NOT routed through the shared Cloudflare tunnel — FamHub holds
+# family data and must not be reachable from the public internet.
+# ingressClassName: tailscale gets a MagicDNS name (famhub.<tailnet>.ts.net)
+# with an automatic Let's Encrypt cert from the operator, reachable only to
+# devices on the tailnet. Phones must have Tailscale installed and logged into
+# this tailnet to reach it — a manual step, not something this manifest can do.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: famhub-ingress
+spec:
+  ingressClassName: tailscale
+  tls:
+    - hosts:
+        - famhub
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: famhub
+                port:
+                  number: 8080

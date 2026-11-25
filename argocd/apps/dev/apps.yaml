@@ -85,6 +85,38 @@ applications:
           maxDuration: 3m
 
   # ---------------------------------------------------------------------------
+  # FamHub — family hub (shared calendar, shopping list, reminders, tasks).
+  # Tailnet-only via the Tailscale operator, NEVER the Cloudflare tunnel (holds
+  # family data). Single replica, SQLite + photos on node-pinned OpenEBS PVCs
+  # (see kustomize/base/famhub/deployment.yaml for the backup note). Image is
+  # ghcr.io/bkiseu/famhub:<commit sha>, built by famhub's own GitHub Actions.
+  # famhub-env Secret (tokens for TODOIST/CALENDAR/MEALIE/MONARCH/VAPID) is
+  # applied out-of-band via `task secret:apply`, see the overlay.
+  # ---------------------------------------------------------------------------
+  dev-famhub:
+    namespace: argocd
+    project: dev-apps
+    sources:
+      - repoURL: https://github.com/bkiseu/homelab.git
+        targetRevision: HEAD
+        path: kustomize/overlays/dev/famhub
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: famhub
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+      retry:
+        limit: 3
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
+
+  # ---------------------------------------------------------------------------
   # Linkding - Self-hosted bookmark manager
   # ---------------------------------------------------------------------------
   dev-linkding:
