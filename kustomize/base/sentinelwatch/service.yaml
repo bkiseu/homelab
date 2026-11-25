@@ -1,0 +1,16 @@
+# NodePort, not a tunnel route: SentinelWatch is private. Reachable only over
+# the tailnet (e.g. http://watchtower:30480 via MagicDNS) or the home LAN.
+# Move behind the Tailscale operator Ingress for HTTPS once its OAuth client
+# exists (see dev-immich).
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinelwatch
+spec:
+  type: NodePort
+  selector:
+    app: sentinelwatch
+  ports:
+  - port: 80
+    targetPort: 8080
+    nodePort: 30480

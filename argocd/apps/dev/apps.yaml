@@ -109,3 +109,32 @@ applications:
           duration: 5s
           factor: 2
           maxDuration: 3m
+
+  # ---------------------------------------------------------------------------
+  # SentinelWatch - Bryant's private application log. Static site served from
+  # ConfigMaps generated from kustomize/base/sentinelwatch/site (synced from the
+  # private github.com/bkiseu/sentinelwatch with `task sentinelwatch:sync`).
+  # Private: NodePort 30480, reachable over the tailnet/LAN only, no tunnel route.
+  # ---------------------------------------------------------------------------
+  dev-sentinelwatch:
+    namespace: argocd
+    project: dev-apps
+    sources:
+      - repoURL: https://github.com/bkiseu/homelab.git
+        targetRevision: HEAD
+        path: kustomize/overlays/dev/sentinelwatch
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: sentinelwatch
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
+      retry:
+        limit: 3
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 3m
