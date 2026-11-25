@@ -109,7 +109,9 @@ spec:
             httpGet:
               path: /api/health
               port: 8080
+            initialDelaySeconds: 30
             periodSeconds: 15
+            failureThreshold: 5
       volumes:
         - name: famhub-db
           persistentVolumeClaim:
@@ -166,6 +168,9 @@ metadata:
   name: famhub-db-pvc
   labels:
     app.kubernetes.io/name: famhub
+  annotations:
+    # Family data: never let ArgoCD prune or cascade-delete this volume.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   accessModes:
     - ReadWriteOnce
@@ -179,6 +184,9 @@ metadata:
   name: famhub-data-pvc
   labels:
     app.kubernetes.io/name: famhub
+  annotations:
+    # Family data: never let ArgoCD prune or cascade-delete this volume.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   accessModes:
     - ReadWriteOnce
